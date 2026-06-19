@@ -1,0 +1,8 @@
+{
+  "name": "game67-bot",
+  "version": "2.0.0",
+  "main": "bot.js",
+  "scripts": { "start": "node bot.js" },
+  "dependencies": { "node-telegram-bot-api": "^0.66.0" },
+  "engines": { "node": ">=18" }
+}

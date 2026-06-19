@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>67</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+/* ─── TOKENS ──────────────────────────────────────────────────────────────── */
+:root {
+  --bg:        #0e0e0e;
+  --bg2:       #171717;
+  --bg3:       #1f1f1f;
+  --bg4:       #272727;
+  --text:      #e8e8e8;
+  --text2:     #808080;
+  --text3:     #444;
+  --border:    #2a2a2a;
+  --border2:   #3a3a3a;
+  --accent:    #ffffff;
+  --ready-c:   #4caf72;
+  --danger:    #c44;
+  --card-back: #0a0a0a;
+  --card-face: #181818;
+  --card-h:    96px;
+  --card-w:    66px;
+  --r:         9px;
+}
+[data-theme=light] {
+  --bg:        #f0efeb;
+  --bg2:       #e8e7e3;
+  --bg3:       #deded9;
+  --bg4:       #d4d3ce;
+  --text:      #111;
+  --text2:     #555;
+  --text3:     #999;
+  --border:    #ccc;
+  --border2:   #bbb;
+  --card-back: #222;
+  --card-face: #fafafa;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;}
+#app{width:100%;height:100dvh;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+
+/* ─── SCREENS ─────────────────────────────────────────────────────────────── */
+.screen{display:none;flex-direction:column;height:100%;align-items:center;justify-content:center;}
+.screen.active{display:flex;}
+#game{display:none;flex-direction:column;height:100%;}
+#game.active{display:flex;}
+
+/* ─── THEME BTN ───────────────────────────────────────────────────────────── */
+.theme-btn{position:fixed;top:14px;right:14px;z-index:100;
+  background:none;border:1px solid var(--border2);color:var(--text2);
+  width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px;
+  display:flex;align-items:center;justify-content:center;}
+
+/* ─── LOBBY ───────────────────────────────────────────────────────────────── */
+.logo{font-size:96px;font-weight:100;letter-spacing:-6px;line-height:1;color:var(--accent);margin-bottom:8px;}
+.logo-sub{font-size:12px;letter-spacing:3px;color:var(--text3);margin-bottom:48px;}
+.main-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text);
+  padding:16px 52px;border-radius:var(--r);font-size:15px;cursor:pointer;letter-spacing:.5px;
+  transition:opacity .15s;}
+.main-btn:active{opacity:.6;}
+
+/* ─── CONNECTING ──────────────────────────────────────────────────────────── */
+.conn-label{font-size:13px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;}
+.spinner{width:28px;height:28px;border:2px solid var(--border2);border-top-color:var(--text2);
+  border-radius:50%;animation:spin .8s linear infinite;margin:16px 0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ─── ROOM ────────────────────────────────────────────────────────────────── */
+#room{justify-content:flex-start;}
+.room-header{width:100%;padding:14px 20px 12px;border-bottom:1px solid var(--border);text-align:center;}
+.room-label{font-size:10px;color:var(--text3);letter-spacing:2.5px;text-transform:uppercase;}
+.room-id{font-size:20px;color:var(--text2);font-weight:300;margin-top:2px;}
+.players-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:20px;width:100%;}
+.p-slot{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  padding:22px 12px;min-height:110px;transition:border-color .3s;}
+.p-slot.ready{border-color:var(--ready-c);}
+.p-slot.empty{opacity:.35;}
+.p-avatar{width:40px;height:40px;background:var(--bg4);border-radius:5px;}
+.p-slot.ready .p-avatar{background:var(--ready-c);}
+.p-status{font-size:11px;color:var(--text3);}
+.p-slot.ready .p-status{color:var(--ready-c);}
+.room-footer{width:100%;padding:14px 20px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:10px;margin-top:auto;}
+.ready-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text);
+  padding:15px;border-radius:var(--r);font-size:15px;cursor:pointer;text-align:center;transition:all .2s;}
+.ready-btn.on{border-color:var(--ready-c);color:var(--ready-c);}
+.ready-btn:active{opacity:.7;}
+.leave-lnk{color:var(--text3);font-size:13px;text-align:center;cursor:pointer;padding:4px;}
+
+/* ─── REVEAL ──────────────────────────────────────────────────────────────── */
+.rv-label{font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-bottom:24px;}
+.rv-wrap{perspective:700px;margin-bottom:28px;}
+.rv-card{width:110px;height:154px;transform-style:preserve-3d;
+  animation:flip 1.1s cubic-bezier(.4,0,.2,1) forwards;animation-delay:.4s;}
+@keyframes flip{0%{transform:rotateY(0)}100%{transform:rotateY(180deg)}}
+.rv-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:12px;}
+.rv-back{background:var(--card-back);border:1px solid var(--border);}
+.rv-front{background:var(--card-face);border:1px solid var(--border2);transform:rotateY(180deg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;}
+.rv-rank{font-size:34px;font-weight:200;color:var(--text);}
+.rv-suit{font-size:40px;line-height:1;color:#fff;}
+.rv-desc{font-size:14px;color:var(--text2);text-align:center;max-width:240px;line-height:1.6;}
+.rv-btn{background:var(--bg3);border:1px solid var(--border2);color:var(--text);
+  padding:13px 44px;border-radius:var(--r);font-size:14px;cursor:pointer;
+  opacity:0;animation:fadein .4s forwards;animation-delay:1.8s;margin-top:16px;}
+@keyframes fadein{to{opacity:1;}}
+.rv-btn:active{opacity:.7;}
+
+/* ─── GAME ────────────────────────────────────────────────────────────────── */
+.g-top{padding:8px 14px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);min-height:44px;flex-shrink:0;}
+.g-turn{font-size:12px;color:var(--text3);letter-spacing:.5px;}
+.g-turn b{color:var(--text);font-weight:500;}
+.g-dir{font-size:20px;transition:transform .5s;}
+.g-pile{font-size:11px;color:var(--text3);}
+
+/* Opponents */
+.opp-area{display:flex;justify-content:space-around;align-items:center;
+  padding:8px 12px;gap:6px;flex-shrink:0;}
+.opp-wrap{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;}
+.opp-fan{display:flex;justify-content:center;height:28px;position:relative;}
+.opp-mini{width:18px;height:26px;background:var(--card-back);border:1px solid var(--border);
+  border-radius:3px;margin-left:-6px;flex-shrink:0;}
+.opp-mini:first-child{margin-left:0;}
+.opp-av{width:30px;height:30px;background:var(--bg3);border:1px solid var(--border);
+  border-radius:4px;font-size:12px;color:var(--text3);display:flex;align-items:center;justify-content:center;}
+.opp-av.active{border-color:var(--accent);}
+.opp-cnt{font-size:10px;color:var(--text3);}
+
+/* Table */
+.table-area{flex:1;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;}
+.table-inner{display:flex;align-items:center;justify-content:center;gap:8px;
+  position:relative;min-height:calc(var(--card-h) + 16px);}
+.empty-msg{font-size:12px;color:var(--text3);letter-spacing:1.5px;}
+
+/* Player hand */
+.hand-area{border-top:1px solid var(--border);padding:8px 10px 12px;flex-shrink:0;}
+.hand-meta{display:flex;justify-content:space-between;align-items:center;
+  padding:0 4px 6px;font-size:11px;}
+.turn-badge{color:var(--text3);letter-spacing:1px;padding:3px 7px;
+  border:1px solid transparent;border-radius:4px;transition:all .2s;}
+.turn-badge.active{color:var(--accent);border-color:var(--accent);}
+.hand-scroll{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;
+  padding:2px 4px 6px;scrollbar-width:none;align-items:flex-end;
+  min-height:calc(var(--card-h) + 12px);}
+.hand-scroll::-webkit-scrollbar{display:none;}
+
+/* ─── CARD ────────────────────────────────────────────────────────────────── */
+.card{
+  width:var(--card-w);min-width:var(--card-w);height:var(--card-h);
+  background:var(--card-face);border:1px solid var(--border2);border-radius:var(--r);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;flex-shrink:0;position:relative;transition:transform .15s,border-color .15s,opacity .15s;
+  cursor:pointer;user-select:none;
+}
+.card .c-rank{font-size:20px;font-weight:200;color:var(--text);line-height:1;}
+.card .c-suit{font-size:26px;line-height:1;color:#fff;}
+.card.trump{border-color:rgba(200,60,60,.45);}
+.card.dim{opacity:.3;pointer-events:none;}
+.card.sel{transform:translateY(-12px);border-color:var(--accent);}
+.card.table-card{cursor:default;pointer-events:none;animation:dealIn .22s ease-out;}
+@keyframes dealIn{from{transform:translateY(-14px) scale(.92);opacity:0;}to{transform:none;opacity:1;}}
+.card.trump.table-card{box-shadow:0 0 10px rgba(200,60,60,.18);}
+
+/* Actions */
+.act-row{display:flex;gap:8px;padding:0 4px 2px;}
+.act-btn{flex:1;padding:11px 8px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--r);color:var(--text2);font-size:13px;cursor:pointer;text-align:center;
+  transition:all .15s;}
+.act-btn:active{opacity:.7;}
+.act-btn.primary{border-color:var(--accent);color:var(--accent);}
+.act-btn:disabled{opacity:.25;pointer-events:none;}
+
+/* ─── COVER ANIMATION OVERLAY ─────────────────────────────────────────────── */
+/* Карточка летит с позиции руки на позицию стола */
+.fly-card{
+  position:fixed;
+  width:var(--card-w);height:var(--card-h);
+  background:var(--card-face);border:1px solid var(--border2);border-radius:var(--r);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  pointer-events:none;z-index:999;will-change:transform,opacity;
+}
+.fly-card .c-rank{font-size:20px;font-weight:200;color:var(--text);}
+.fly-card .c-suit{font-size:26px;line-height:1;color:#fff;}
+.fly-card.trump{border-color:rgba(200,60,60,.6);}
+
+/* Подсветка карты на столе при покрытии */
+@keyframes coverGlow {
+  0%  { box-shadow: 0 0 0 0 rgba(255,255,255,.3); }
+  50% { box-shadow: 0 0 0 8px rgba(255,255,255,.0); }
+  100%{ box-shadow: 0 0 0 0 rgba(255,255,255,.0); }
+}
+.cover-glow { animation: coverGlow .4s ease-out; }
+
+/* Карты улетают в биту */
+@keyframes flushOut {
+  0%  { transform: scale(1); opacity: 1; }
+  40% { transform: scale(1.08); opacity: .9; }
+  100%{ transform: scale(.4) translateY(-30px); opacity: 0; }
+}
+.flush-out { animation: flushOut .38s ease-in forwards; }
+
+/* Поднял стол */
+@keyframes pickupAnim {
+  0%   { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(60px) scale(.8); opacity: 0; }
+}
+.pickup-anim { animation: pickupAnim .35s ease-in forwards; }
+
+/* Переворот направления */
+@keyframes dirFlip {
+  0%   { transform: scale(1) rotate(0); }
+  50%  { transform: scale(1.4) rotate(180deg); }
+  100% { transform: scale(1) rotate(360deg); }
+}
+.dir-flip { animation: dirFlip .5s ease-out; }
+
+/* Д+ — все летят в биту (shake + flush) */
+@keyframes megaFlush {
+  0%   { transform: scale(1); }
+  20%  { transform: scale(1.15) rotate(-3deg); }
+  40%  { transform: scale(1.15) rotate(3deg); }
+  60%  { transform: scale(1.1) rotate(-2deg); }
+  80%  { transform: scale(1.05); }
+  100% { transform: scale(.2) translateY(-40px); opacity: 0; }
+}
+.mega-flush { animation: megaFlush .5s ease-in forwards; }
+
+/* ─── GAME OVER ───────────────────────────────────────────────────────────── */
+#gameover .g-title{font-size:11px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;}
+#gameover .g-result{font-size:60px;font-weight:100;letter-spacing:-3px;margin:8px 0;}
+#gameover .g-result.win{color:var(--ready-c);}
+#gameover .g-result.lose{color:var(--danger);}
+#gameover .g-sub{font-size:14px;color:var(--text2);}
+
+/* ─── TOAST ───────────────────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+  background:var(--bg4);border:1px solid var(--border2);color:var(--text);
+  padding:9px 18px;border-radius:var(--r);font-size:13px;z-index:1000;
+  opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;max-width:92vw;text-align:center;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- LOBBY -->
+<div id="lobby" class="screen active">
+  <div class="logo">67</div>
+  <div class="logo-sub">карточная игра</div>
+  <button class="main-btn" onclick="G.search()">Поиск комнаты</button>
+</div>
+
+<!-- CONNECTING -->
+<div id="connecting" class="screen">
+  <div class="spinner"></div>
+  <div class="conn-label" id="conn-label">Подключение...</div>
+</div>
+
+<!-- ROOM -->
+<div id="room" class="screen">
+  <div class="room-header">
+    <div class="room-label">Комната</div>
+    <div class="room-id" id="room-id">—</div>
+  </div>
+  <div class="players-grid" id="players-grid"></div>
+  <div class="room-footer">
+    <div class="ready-btn" id="ready-btn" onclick="G.toggleReady()">Готов</div>
+    <div class="leave-lnk" onclick="G.leave()">Покинуть</div>
+  </div>
+</div>
+
+<!-- REVEAL -->
+<div id="reveal" class="screen">
+  <div class="rv-label">Первый ход</div>
+  <div class="rv-wrap">
+    <div class="rv-card">
+      <div class="rv-face rv-back"></div>
+      <div class="rv-face rv-front">
+        <div class="rv-rank" id="rv-rank"></div>
+        <div class="rv-suit" id="rv-suit"></div>
+      </div>
+    </div>
+  </div>
+  <div class="rv-desc" id="rv-desc"></div>
+  <button class="rv-btn" onclick="G.confirmReveal()">Начать игру</button>
+</div>
+
+<!-- GAME -->
+<div id="game">
+  <div class="g-top">
+    <div class="g-turn">Ход: <b id="g-who">—</b></div>
+    <div class="g-dir" id="g-dir">↺</div>
+    <div class="g-pile" id="g-pile"></div>
+  </div>
+  <div class="opp-area" id="opp-area"></div>
+  <div class="table-area">
+    <div class="table-inner" id="table-inner">
+      <div class="empty-msg">— стол пуст —</div>
+    </div>
+  </div>
+  <div class="hand-area">
+    <div class="hand-meta">
+      <div class="turn-badge" id="turn-badge">Ваш ход</div>
+      <div style="font-size:11px;color:var(--text3)" id="hand-cnt"></div>
+    </div>
+    <div class="hand-scroll" id="hand-scroll"></div>
+    <div class="act-row" id="act-row"></div>
+  </div>
+</div>
+
+<!-- GAMEOVER -->
+<div id="gameover" class="screen">
+  <div class="g-title">Игра окончена</div>
+  <div class="g-result" id="g-result"></div>
+  <div class="g-sub" id="g-sub"></div>
+  <button class="main-btn" style="margin-top:32px" onclick="G.toLobby()">В меню</button>
+</div>
+
+<button class="theme-btn" onclick="G.toggleTheme()">◐</button>
+<div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+//  CONFIGURATION — замените WS_URL на ваш сервер после деплоя
+// ════════════════════════════════════════════════════════════════════════════
+// ВАЖНО: замените на URL вашего задеплоенного сервера
+// Например: wss://game67-server.railway.app
+// Для локального теста: ws://localhost:3000
+const WS_URL = window.location.hostname === 'localhost'
+  ? 'ws://localhost:3000'
+  : 'wss://ВАША_ССЫЛКА_НА_СЕРВЕР.railway.app'; // ← ЗАМЕНИТЕ
+
+// ════════════════════════════════════════════════════════════════════════════
+//  UTILITIES
+// ════════════════════════════════════════════════════════════════════════════
+let toastT;
+function toast(msg, ms = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function screen(id) {
+  document.querySelectorAll('.screen, #game').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function isTrump(c) { return c.suit === '♚'; }
+function suitClass(c) {
+  return isTrump(c) ? 'trump' : '';
+}
+
+function cardHTML(c, extra = '') {
+  if (!c) return `<div class="card ${extra}" style="background:var(--card-back);cursor:default;pointer-events:none;"></div>`;
+  const tc = isTrump(c) ? 'trump' : '';
+  return `<div class="card ${tc} ${extra}">
+    <div class="c-rank">${c.rank}</div>
+    <div class="c-suit">${c.suit}</div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  GLOBAL STATE
+// ════════════════════════════════════════════════════════════════════════════
+const G = {
+  ws: null,
+  state: null,      // last game_state from server
+  myIndex: -1,
+  isDark: true,
+  isReady: false,
+  selectedCard: null,
+  roomId: null,
+  userId: null,
+  userName: null,
+
+  // ── INIT ──────────────────────────────────────────────────────────────────
+  init() {
+    // Telegram user info
+    const twa = window.Telegram?.WebApp;
+    if (twa) {
+      twa.expand();
+      twa.ready();
+      const u = twa.initDataUnsafe?.user;
+      this.userId  = String(u?.id    ?? Math.random().toString(36).slice(2));
+      this.userName = u?.first_name ?? 'Игрок';
+      twa.setHeaderColor('#0e0e0e');
+      twa.setBackgroundColor('#0e0e0e');
+    } else {
+      this.userId   = 'u' + Math.random().toString(36).slice(2, 8);
+      this.userName = 'Игрок';
+    }
+  },
+
+  // ── THEME ─────────────────────────────────────────────────────────────────
+  toggleTheme() {
+    this.isDark = !this.isDark;
+    document.documentElement.setAttribute('data-theme', this.isDark ? 'dark' : 'light');
+  },
+
+  // ── WEBSOCKET ─────────────────────────────────────────────────────────────
+  connect(onOpen) {
+    if (this.ws) { this.ws.close(); this.ws = null; }
+    screen('connecting');
+    document.getElementById('conn-label').textContent = 'Подключение...';
+    const ws = new WebSocket(WS_URL);
+    this.ws = ws;
+    ws.onopen = () => { onOpen(ws); };
+    ws.onmessage = (e) => { this.onMessage(JSON.parse(e.data)); };
+    ws.onerror = () => toast('Ошибка соединения');
+    ws.onclose = () => {
+      if (this.state?.phase === 'playing') toast('Соединение потеряно');
+    };
+  },
+
+  send(obj) {
+    if (this.ws?.readyState === 1) this.ws.send(JSON.stringify(obj));
+  },
+
+  onMessage(msg) {
+    switch (msg.type) {
+      case 'joined':
+        this.myIndex = msg.yourIndex;
+        this.roomId = msg.roomId;
+        document.getElementById('room-id').textContent = msg.roomId;
+        screen('room');
+        break;
+
+      case 'room_update':
+        this.renderRoom(msg.players);
+        break;
+
+      case 'game_state':
+        this.myIndex = msg.myIndex;
+        this.state = msg;
+        if (msg.phase === 'reveal') { this.showReveal(); }
+        else if (msg.phase === 'playing') { this.renderGame(); }
+        else if (msg.phase === 'gameover') { this.showGameOver(); }
+        break;
+
+      case 'game_event':
+        this.handleEvent(msg.event, msg.myIndex);
+        break;
+
+      case 'error':
+        toast(msg.reason);
+        break;
+
+      case 'player_left':
+        toast('Игрок покинул игру');
+        break;
+    }
+  },
+
+  // ── ROOM ──────────────────────────────────────────────────────────────────
+  search() {
+    this.connect((ws) => {
+      document.getElementById('conn-label').textContent = 'Поиск комнаты...';
+      ws.send(JSON.stringify({ type: 'join', userId: this.userId, name: this.userName }));
+    });
+  },
+
+  renderRoom(players) {
+    const grid = document.getElementById('players-grid');
+    let html = '';
+    for (let i = 0; i < 4; i++) {
+      const p = players[i];
+      if (p) {
+        html += `<div class="p-slot${p.ready ? ' ready' : ''}">
+          <div class="p-avatar"></div>
+          <div class="p-status">${p.ready ? 'Готов' : 'Не готов'}</div>
+        </div>`;
+      } else {
+        html += `<div class="p-slot empty">
+          <div class="p-avatar"></div>
+          <div class="p-status">Ожидание</div>
+        </div>`;
+      }
+    }
+    grid.innerHTML = html;
+  },
+
+  toggleReady() {
+    this.isReady = !this.isReady;
+    const btn = document.getElementById('ready-btn');
+    btn.textContent = this.isReady ? 'Не готов' : 'Готов';
+    btn.classList.toggle('on', this.isReady);
+    this.send({ type: 'ready', isReady: this.isReady });
+  },
+
+  leave() {
+    this.isReady = false;
+    if (this.ws) { this.ws.close(); this.ws = null; }
+    screen('lobby');
+  },
+
+  toLobby() {
+    this.state = null;
+    this.selectedCard = null;
+    this.isReady = false;
+    if (this.ws) { this.ws.close(); this.ws = null; }
+    screen('lobby');
+  },
+
+  // ── REVEAL ────────────────────────────────────────────────────────────────
+  showReveal() {
+    const s = this.state;
+    const rc = s.revealCard;
+    document.getElementById('rv-rank').textContent = rc.rank;
+    document.getElementById('rv-suit').textContent = rc.suit;
+    const isMe = s.firstPlayer === this.myIndex;
+    const name = isMe ? 'Вы ходите первым!' : `${s.players[s.firstPlayer].name} ходит первым`;
+    document.getElementById('rv-desc').textContent = name;
+    screen('reveal');
+  },
+
+  confirmReveal() {
+    this.send({ type: 'reveal_done' });
+    // Если только мы — показываем игру локально тоже
+    screen('game');
+    if (this.state?.phase === 'playing') this.renderGame();
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  GAME EVENT HANDLER (анимации)
+  // ══════════════════════════════════════════════════════════════════════════
+  handleEvent(event, myIndex) {
+    if (event.type === 'play') {
+      this.animatePlay(event, myIndex);
+    } else if (event.type === 'pickup') {
+      this.animatePickup(event);
+    }
+  },
+
+  // Карта летит от игрока на стол
+  animatePlay(event, myIndex) {
+    const card = event.card;
+    const isMine = event.playerIdx === myIndex;
+
+    // Находим откуда лететь
+    let fromEl = null;
+    if (isMine && this.selectedCard !== null) {
+      const cards = document.querySelectorAll('#hand-scroll .card');
+      fromEl = cards[this.selectedCard] || null;
+    }
+
+    // Точка назначения — центр стола
+    const tableArea = document.getElementById('table-area') ||
+                      document.querySelector('.table-area');
+    const tableRect = tableArea ? tableArea.getBoundingClientRect()
+                                : { left: window.innerWidth/2, top: window.innerHeight/2,
+                                    width: 100, height: 100 };
+
+    const destX = tableRect.left + tableRect.width/2 - parseInt(getComputedStyle(document.documentElement).getPropertyValue('--card-w'))/2;
+    const destY = tableRect.top + tableRect.height/2 - parseInt(getComputedStyle(document.documentElement).getPropertyValue('--card-h'))/2;
+
+    if (fromEl) {
+      const fromRect = fromEl.getBoundingClientRect();
+      this._flyCard(card, fromRect.left, fromRect.top, destX, destY,
+        event.effect, event.flushed, event.beatAll, event.tableTop);
+    } else {
+      // Анимация сверху (ход оппонента)
+      const startX = tableRect.left + tableRect.width/2 - 33;
+      const startY = event.playerIdx < myIndex ? 0 : window.innerHeight;
+      this._flyCard(card, startX, startY, destX, destY,
+        event.effect, event.flushed, event.beatAll, event.tableTop);
+    }
+  },
+
+  _flyCard(card, sx, sy, dx, dy, effect, flushed, beatAll, tableTop) {
+    const fly = document.createElement('div');
+    fly.className = `fly-card${isTrump(card) ? ' trump' : ''}`;
+    fly.innerHTML = `<div class="c-rank">${card.rank}</div><div class="c-suit">${card.suit}</div>`;
+    fly.style.cssText = `left:${sx}px;top:${sy}px;transform:translate(0,0);`;
+    document.body.appendChild(fly);
+
+    const dur = 280;
+    requestAnimationFrame(() => {
+      fly.style.transition = `transform ${dur}ms cubic-bezier(.2,0,.2,1), opacity ${dur}ms`;
+      fly.style.transform = `translate(${dx-sx}px,${dy-sy}px)`;
+      setTimeout(() => {
+        fly.remove();
+
+        // Звёздный момент: что происходит с картами на столе
+        const tableCards = document.querySelectorAll('#table-inner .card');
+
+        if (beatAll || flushed) {
+          // Д+ или накопились карты — все улетают
+          const anim = beatAll ? 'mega-flush' : 'flush-out';
+          tableCards.forEach(c => {
+            c.classList.add(anim);
+          });
+          // Показываем эффект переворота если есть
+          if (effect?.flip) this._animateDir();
+          // После анимации — renderGame придёт из state_update
+        } else if (tableTop && effect) {
+          // Покрытие — подсветить верхнюю карту
+          if (tableCards.length > 0) {
+            tableCards[tableCards.length - 1].classList.add('cover-glow');
+          }
+          if (effect.flip) this._animateDir();
+        }
+
+        // Обновим UI (придёт из game_state сообщения сервера)
+        this.selectedCard = null;
+      }, dur + 20);
+    });
+  },
+
+  _animateDir() {
+    const el = document.getElementById('g-dir');
+    el.classList.remove('dir-flip');
+    void el.offsetWidth; // reflow
+    el.classList.add('dir-flip');
+    el.addEventListener('animationend', () => el.classList.remove('dir-flip'), { once: true });
+  },
+
+  animatePickup(event) {
+    document.querySelectorAll('#table-inner .card').forEach(c => {
+      c.classList.add('pickup-anim');
+    });
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  GAME RENDER
+  // ══════════════════════════════════════════════════════════════════════════
+  renderGame() {
+    const s = this.state;
+    if (!s) return;
+    screen('game');
+
+    // Top bar
+    const curName = s.players[s.currentPlayer]?.name ?? '?';
+    const isMe = s.currentPlayer === this.myIndex;
+    document.getElementById('g-who').textContent = isMe ? 'Вы' : curName;
+    document.getElementById('g-dir').textContent = s.direction === -1 ? '↺' : '↻';
+    document.getElementById('g-pile').textContent = s.pile > 0 ? `Бита: ${s.pile}` : '';
+
+    // Opponents
+    this.renderOpponents();
+
+    // Table
+    this.renderTable();
+
+    // Hand
+    this.renderHand();
+
+    // Actions
+    this.renderActions();
+
+    // Turn badge
+    document.getElementById('turn-badge').classList.toggle('active', isMe);
+  },
+
+  renderOpponents() {
+    const s = this.state;
+    const others = s.players
+      .map((p, i) => ({ ...p, idx: i }))
+      .filter(p => p.idx !== this.myIndex);
+    const area = document.getElementById('opp-area');
+    area.innerHTML = others.map(p => {
+      const hand = s.hands[p.idx];
+      const count = hand.filter(Boolean).length;
+      const isActive = s.currentPlayer === p.idx;
+      const minis = Array.from({ length: Math.min(count, 12) }, () =>
+        `<div class="opp-mini"></div>`).join('');
+      return `<div class="opp-wrap">
+        <div class="opp-cnt">${count} карт</div>
+        <div class="opp-fan">${minis}</div>
+        <div class="opp-av${isActive ? ' active' : ''}">${(p.name||'?')[0]}</div>
+      </div>`;
+    }).join('');
+  },
+
+  renderTable() {
+    const s = this.state;
+    const ti = document.getElementById('table-inner');
+    if (!s.table || s.table.length === 0) {
+      ti.innerHTML = '<div class="empty-msg">— стол пуст —</div>';
+      return;
+    }
+    ti.innerHTML = s.table.map(c =>
+      `<div class="card table-card${isTrump(c) ? ' trump' : ''}">
+        <div class="c-rank">${c.rank}</div>
+        <div class="c-suit">${c.suit}</div>
+      </div>`
+    ).join('');
+  },
+
+  renderHand() {
+    const s = this.state;
+    const myHand = s.hands[this.myIndex] ?? [];
+    const isMyTurn = s.currentPlayer === this.myIndex;
+    const tableTop = s.table?.[s.table.length - 1] ?? null;
+    const scroll = document.getElementById('hand-scroll');
+
+    // Определяем playable
+    const RANK_POWER = { '6':0,'В':1,'Д':2,'К':3,'Т':4,'7':5,'8':6 };
+    function canCoverClient(att, def) {
+      if (def.rank === 'Д' && def.suit === '+') return true;
+      if (att && att.rank === '7' && def.rank === '6') return false;
+      if (att && att.suit === '+') {
+        return def.suit === '+' && RANK_POWER[def.rank] > RANK_POWER[att.rank];
+      }
+      if (def.rank === '6') {
+        if (!att) return true;
+        if (att.suit === '+') return false;
+        if (att.rank === '7') return false;
+        if (def.suit === '♚') return true;
+        return def.suit === att.suit;
+      }
+      if (!att) return true;
+      if (att.suit === '♚') {
+        return def.suit === '♚' && RANK_POWER[def.rank] > RANK_POWER[att.rank];
+      }
+      if (def.suit === att.suit) return RANK_POWER[def.rank] > RANK_POWER[att.rank];
+      if (def.suit === '♚') return true;
+      return false;
+    }
+
+    scroll.innerHTML = myHand.map((card, i) => {
+      if (!card) return '';
+      let extra = '';
+      if (isMyTurn) {
+        const playable = !tableTop || canCoverClient(tableTop, card);
+        if (!playable) extra = 'dim';
+      }
+      const sel = this.selectedCard === i ? 'sel' : '';
+      const tr = isTrump(card) ? 'trump' : '';
+      return `<div class="card ${tr} ${extra} ${sel}" onclick="G.selectCard(${i})">
+        <div class="c-rank">${card.rank}</div>
+        <div class="c-suit">${card.suit}</div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('hand-cnt').textContent = `${myHand.filter(Boolean).length} карт`;
+  },
+
+  renderActions() {
+    const s = this.state;
+    const isMyTurn = s.currentPlayer === this.myIndex;
+    const row = document.getElementById('act-row');
+    if (!isMyTurn) { row.innerHTML = ''; return; }
+
+    const canPlay = this.selectedCard !== null;
+    const canPickup = s.table?.length > 0;
+    row.innerHTML = `
+      <div class="act-btn${canPlay ? ' primary' : ''}" onclick="${canPlay ? 'G.doPlay()' : ''}"
+        ${canPlay ? '' : 'disabled'}>Сыграть</div>
+      ${canPickup ? `<div class="act-btn" onclick="G.doPickup()">Поднять стол</div>` : ''}`;
+  },
+
+  selectCard(i) {
+    const s = this.state;
+    if (!s || s.currentPlayer !== this.myIndex) return;
+    this.selectedCard = this.selectedCard === i ? null : i;
+    this.renderHand();
+    this.renderActions();
+  },
+
+  doPlay() {
+    if (this.selectedCard === null) return;
+    this.send({ type: 'play', cardIndex: this.selectedCard });
+    // Анимация запустится из game_event
+  },
+
+  doPickup() {
+    this.send({ type: 'pickup' });
+  },
+
+  // ── GAME OVER ─────────────────────────────────────────────────────────────
+  showGameOver() {
+    const s = this.state;
+    screen('gameover');
+    const res = document.getElementById('g-result');
+    const sub = document.getElementById('g-sub');
+    if (s.loser === null) {
+      res.textContent = 'Ничья';
+      res.className = 'g-result';
+      sub.textContent = '';
+    } else if (s.loser === this.myIndex) {
+      res.textContent = 'Поражение';
+      res.className = 'g-result lose';
+      const cnt = (s.hands[this.myIndex] ?? []).filter(Boolean).length;
+      sub.textContent = `У вас осталось ${cnt} карт`;
+    } else {
+      res.textContent = 'Победа';
+      res.className = 'g-result win';
+      const loserName = s.players[s.loser]?.name ?? 'Оппонент';
+      sub.textContent = `${loserName} остался с картами`;
+    }
+  },
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+G.init();
+</script>
+</body>
+</html>
